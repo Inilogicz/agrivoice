@@ -55,6 +55,7 @@ Preliminary measurements on small samples; native-speaker evaluation is in progr
 | Translation Hausa → English | Faithful, formatting and product names kept |
 | Translation Hausa → Yoruba | Direct translation mixed in Hausa words; translating via English removed them |
 | End-to-end voice question (production) | ~30–36 s: detection + transcription on CPU 13–27 s, N-ATLaS on GPU 16–32 s |
+| Spoken answer, all four languages (production) | 25–45 s of speech generated in 33–74 s on the GPU; replays ~1–2 s |
 
 ## Repository
 

@@ -52,7 +52,8 @@ async def features(manager: ModelManager = Depends(get_model_manager)) -> dict:
         "MP3 of a message read aloud (YarnGPT2 Nigerian voices). Use it directly as "
         "`<audio src>`. Without `language` it reads the message as written; with a "
         "different language it reads the saved translation (translate it first). The "
-        "first request generates the audio (~10–40 s); later ones return it instantly."
+        "first request generates the audio (~30–75 s for a full answer); later ones "
+        "return it in about a second."
     ),
     response_class=FileResponse,
     responses={200: {"content": {"audio/mpeg": {}}}},

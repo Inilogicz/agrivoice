@@ -91,7 +91,7 @@ ckpt = _find("wavtokenizer_large_speech_320_24k.ckpt")
 config = _find("wavtokenizer_mediumdata_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml")
 if ckpt and config:
     # outetts without its llama-cpp dependency (only its audio decoder is used)
-    subprocess.run("pip install -q --no-deps outetts==0.3.3 && pip install -q uroman inflect einops loguru soundfile",
+    subprocess.run("pip install -q --no-deps outetts==0.3.3 && pip install -q uroman inflect einops soundfile",
                    shell=True, check=True)
     if not os.path.isdir("/kaggle/working/yarngpt"):
         subprocess.run("git clone -q --depth 1 https://github.com/saheedniyi02/yarngpt.git /kaggle/working/yarngpt",

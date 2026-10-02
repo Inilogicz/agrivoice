@@ -174,7 +174,7 @@ The message read aloud, as **MP3**, by Nigerian voices (YarnGPT2). Put the URL s
 | *(none)* | Read the message in its own language |
 | `language=en-ng` (or `yo`, `ha`, `ig`) | Read its saved **translation**. Call `POST /translate` first, or you get `404 TRANSLATION_NOT_FOUND` |
 
-- The **first** request makes the recording: allow **up to ~60 s** and show a loading state on the Listen button. After that it's saved and returns instantly, even while N-ATLaS is offline.
+- The **first** request makes the recording: measured **30–75 s** for 70–135-word answers (≈ 25–45 s of speech). Use a request timeout of at least 120 s and show a loading state on the Listen button. After that it's saved and returns in ~1–2 s, even while N-ATLaS is offline.
 - Making a new recording needs N-ATLaS online (speech runs on the same GPU). Otherwise: **503 `SPEECH_UNAVAILABLE`**; retry later.
 - Speech is generated slightly slower than natural pace (the admin can change it). Players can also offer their own speed control (`audio.playbackRate = 0.9`).
 - Keep the text on screen next to the audio: the voices sometimes mispronounce words, especially English terms inside Yoruba, Hausa or Igbo.

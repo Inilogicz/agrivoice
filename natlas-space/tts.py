@@ -11,8 +11,10 @@ https://github.com/saheedniyi02/yarngpt · https://huggingface.co/saheedniyi/Yar
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 import sys
+import types
 from typing import Any
 
 import numpy as np
@@ -50,10 +52,28 @@ def split_sentences(text: str) -> list[str]:
     return sentences
 
 
+def _load_outetts_decoder_only() -> None:
+    """
+    YarnGPT imports outetts.wav_tokenizer (the audio decoder). Importing it
+    normally runs outetts/__init__.py, which pulls in its whole TTS stack
+    (llama-cpp, MeCab, Whisper, …) that YarnGPT never uses. Registering the
+    package without running __init__ makes only the decoder load.
+    """
+    if "outetts" in sys.modules:
+        return
+    spec = importlib.util.find_spec("outetts")
+    if spec is None or not spec.submodule_search_locations:
+        raise ImportError("outetts is not installed (pip install --no-deps outetts==0.3.3)")
+    package = types.ModuleType("outetts")
+    package.__path__ = list(spec.submodule_search_locations)
+    sys.modules["outetts"] = package
+
+
 class YarnTTS:
     def __init__(self, yarngpt_parent_dir: str, wavtokenizer_ckpt: str, wavtokenizer_config: str) -> None:
         if yarngpt_parent_dir not in sys.path:
             sys.path.insert(0, yarngpt_parent_dir)
+        _load_outetts_decoder_only()
         from transformers import AutoModelForCausalLM  # noqa: PLC0415
         from yarngpt.audiotokenizer import AudioTokenizerV2  # type: ignore[import-not-found]  # noqa: PLC0415
 

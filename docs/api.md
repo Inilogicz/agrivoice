@@ -7,6 +7,8 @@ AgriVoice answers farmers' questions by voice or text in **Yoruba, Hausa, Igbo a
 
 No authentication is needed. All responses are JSON. Timestamps are UTC (ISO 8601).
 
+**Building a mobile app?** Read the endpoints below, then [Mobile apps (React Native / Expo)](#mobile-apps-react-native--expo).
+
 ---
 
 ## The main flow: asking by voice
@@ -273,7 +275,7 @@ One exception: if a request is missing required fields (e.g. no `audio`), FastAP
 
 ## Recording
 
-- **Formats:** WAV, WebM, MP3, M4A/MP4, OGG. Chrome/Firefox `MediaRecorder` (`audio/webm;codecs=opus`) and Safari (`audio/mp4`) both work as-is.
+- **Formats:** WAV, WebM, MP3, M4A/MP4/AAC, OGG. Chrome/Firefox `MediaRecorder` (`audio/webm;codecs=opus`) and Safari (`audio/mp4`) both work as-is.
 - **Length:** keep questions **under 30 seconds**. The speech models transcribe one 30-second window, so anything after that is currently ignored.
 - **Size:** max 25 MB.
 - Quiet surroundings help a lot; transcription accuracy drops with background noise.
@@ -322,8 +324,163 @@ if (first.kind === "pickLanguage") {
 
 ---
 
+## Mobile apps (React Native / Expo)
+
+Everything above applies; these are the mobile-specific parts. Examples use **`expo-audio`** (recording and playback). It replaces `expo-av`.
+
+```bash
+npx expo install expo-audio
+```
+
+### Setup
+
+- **No CORS** in native apps: ignore the CORS notes below.
+- The API is **HTTPS**, so no Android cleartext or iOS ATS exceptions are needed.
+- Add the microphone permission text in `app.json`:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      ["expo-audio", { "microphonePermission": "AgriVoice records your question so it can answer you." }]
+    ]
+  }
+}
+```
+
+### Record a question
+
+`RecordingPresets.HIGH_QUALITY` records **AAC in an `.m4a` file on both iOS and Android**, which the API accepts. Stop at **30 seconds**: only the first 30 s are transcribed.
+
+```tsx
+import { useEffect, useRef } from "react";
+import {
+  AudioModule, RecordingPresets, setAudioModeAsync,
+  useAudioRecorder, useAudioRecorderState,
+} from "expo-audio";
+
+const MAX_SECONDS = 30;
+
+export function useQuestionRecorder() {
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const state = useAudioRecorderState(recorder);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    (async () => {
+      const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+      if (!granted) return; // show "microphone access is needed"
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    })();
+  }, []);
+
+  async function start() {
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    timer.current = setTimeout(stop, MAX_SECONDS * 1000);
+  }
+
+  async function stop(): Promise<string | null> {
+    clearTimeout(timer.current);
+    await recorder.stop();
+    return recorder.uri; // file:// URI of the .m4a
+  }
+
+  return { start, stop, isRecording: state.isRecording, seconds: Math.floor(state.durationMillis / 1000) };
+}
+```
+
+### Send it
+
+React Native uploads a local file as a `{ uri, name, type }` object in `FormData`.
+
+- Use `type: "audio/mp4"` (`"audio/m4a"`, `"audio/x-m4a"` and `"audio/aac"` are accepted too).
+- **Don't set the `Content-Type` header** yourself: `fetch` adds the multipart boundary.
+- Use your own timeout (`AbortSignal.timeout` isn't available in every React Native version).
+
+```ts
+const API = "https://132-145-21-82.sslip.io/api/v1";
+
+type Language = { code: string; name: string; native_name: string };
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 120_000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+export async function askByVoice(
+  recordingUri: string,
+  opts: { language?: string; conversationId?: string } = {},
+) {
+  const form = new FormData();
+  form.append("audio", { uri: recordingUri, name: "question.m4a", type: "audio/mp4" } as any);
+  if (opts.language) form.append("language", opts.language);
+  if (opts.conversationId) form.append("conversation_id", opts.conversationId);
+
+  const res = await fetchWithTimeout(`${API}/voice/ask`, { method: "POST", body: form });
+  const data = await res.json();
+
+  if (res.ok) return { kind: "answer" as const, data };
+  if (data.detail?.error === "LANGUAGE_NOT_DETECTED") {
+    return { kind: "pickLanguage" as const, languages: data.detail.available_languages as Language[] };
+  }
+  throw new Error(data.detail?.message ?? "Something went wrong");
+}
+```
+
+**Language not detected:** keep `recordingUri`, show a picker from `languages`, then call `askByVoice(recordingUri, { language: code })` again. The farmer doesn't record twice.
+
+### Play a spoken answer
+
+1. Check `GET /features` once at start-up and show the 🔊 button only if `speech` is `true`.
+2. The **first** request for an answer's audio takes **30–75 s** (the server creates it), and later ones about a second. Native players can give up while waiting, so **request it first with `fetch`, then play the URL**. The second request is served instantly from the server's saved copy.
+
+```ts
+import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+
+let player: AudioPlayer | null = null;
+
+export async function playAnswer(messageId: string, language?: string, rate = 1.0) {
+  const url = `${API}/messages/${messageId}/audio${language ? `?language=${language}` : ""}`;
+
+  // Make sure the recording exists (slow the first time; show a spinner)
+  const res = await fetchWithTimeout(url, {}, 120_000);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail?.message ?? "Audio unavailable"); // e.g. SPEECH_UNAVAILABLE: offer retry
+  }
+
+  player?.remove();
+  player = createAudioPlayer({ uri: url });
+  player.setPlaybackRate(rate, "high"); // optional speed control; "high" keeps the pitch on iOS
+  player.play();
+}
+
+export function stopAnswer() {
+  player?.remove();
+  player = null;
+}
+```
+
+For a translation's audio, call `POST /translate` first, then `playAnswer(messageId, "en-ng")`.
+
+### Mobile UX tips
+
+- **Show progress states:** "Listening…" (upload + transcription), "Thinking…" (N-ATLaS), "Preparing audio…" (first Listen). Voice answers take ~15–60 s.
+- **Keep the transcript and answer text on screen** while audio plays; voices sometimes mispronounce words.
+- **Offer a speed control** (e.g. 0.8× / 1× / 1.2×) with `setPlaybackRate`.
+- **Retry on 503** (`LLM_UNAVAILABLE`, `SPEECH_UNAVAILABLE`): N-ATLaS may be offline for a while. The transcript is still returned, so show it.
+- **Save `conversation_id`** (e.g. AsyncStorage) to continue a chat, and restore it with `GET /conversations/{id}`.
+
+---
+
 ## Notes for development
 
 - **Restarts:** after a server restart the models take ~1–4 minutes to load. `GET /health` responds once it's up; `GET /health/ready` shows when every model is loaded.
 - **Mock responses:** text starting with `[MOCK]` comes from placeholder models used in local development, never from the deployed server.
-- **CORS:** the server allows `http://localhost:3000` and `http://localhost:5173`. Tell us your dev or production origin if it's different.
+- **CORS** (web apps only): the server allows `http://localhost:3000` and `http://localhost:5173`. Tell us your dev or production origin if it's different.

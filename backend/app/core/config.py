@@ -69,8 +69,9 @@ class Settings(BaseSettings):
     # ── Audio ─────────────────────────────────────────────────────────────────
     MAX_AUDIO_SIZE_MB: int = 25
     ALLOWED_AUDIO_TYPES: list[str] = Field(
+        # Includes the labels phones commonly use for AAC/M4A recordings
         default=["audio/wav", "audio/x-wav", "audio/wave", "audio/webm", "audio/mpeg",
-                 "audio/mp4", "audio/x-m4a", "audio/ogg"]
+                 "audio/mp4", "audio/x-m4a", "audio/m4a", "audio/aac", "audio/ogg"]
     )
     AUDIO_SAMPLE_RATE: int = 16000       # Whisper models expect 16 kHz
     TEMP_AUDIO_DIR: str = "/tmp/agrivoice_audio"

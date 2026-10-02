@@ -49,3 +49,9 @@ def test_validate_audio_file_accepts_browser_codec_parameters():
         content_type="audio/webm;codecs=opus",
         file_size=50_000,
     )
+
+
+@pytest.mark.parametrize("content_type", ["audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac"])
+def test_validate_audio_file_accepts_mobile_aac_labels(content_type):
+    # iOS/Android (expo-audio HIGH_QUALITY) record AAC in .m4a; apps label it differently
+    validate_audio_file(file_path="question.m4a", content_type=content_type, file_size=80_000)

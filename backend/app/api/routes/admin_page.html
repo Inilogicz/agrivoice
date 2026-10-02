@@ -48,7 +48,8 @@
   .stat .label { color: var(--muted); font-size: 12px; }
   .stat .value { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
   .bars { display: grid; gap: 6px; margin-top: 12px; }
-  .bars .row { display: grid; grid-template-columns: 120px 1fr 48px; align-items: center; gap: 8px; font-size: 13px; }
+  .bars .row { display: grid; grid-template-columns: minmax(0, 11rem) 1fr 40px; align-items: center; gap: 10px; font-size: 13px; }
+  .bars .row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bars .track { height: 8px; background: var(--accent-soft); border-radius: 4px; overflow: hidden; }
   .bars .fill { height: 100%; background: var(--accent); }
   .bars .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
@@ -262,6 +263,16 @@
   const API = "/api/v1/admin";
   const $ = (id) => document.getElementById(id);
   const LANG = { yo: "Yoruba", ha: "Hausa", ig: "Igbo", "en-ng": "Nigerian English", unknown: "Unknown" };
+  // Readable names for error codes (the code stays visible in Activity)
+  const ERRORS = {
+    LLM_UNAVAILABLE: "N-ATLaS offline", SPEECH_UNAVAILABLE: "Speech offline", SPEECH_DISABLED: "Speech switched off",
+    LANGUAGE_NOT_DETECTED: "Language not detected", UNSUPPORTED_LANGUAGE: "Unsupported language",
+    AUDIO_VALIDATION_ERROR: "Bad or unreadable audio", AUDIO_PROCESSING_ERROR: "Audio processing failed",
+    MESSAGE_NOT_FOUND: "Message not found", CONVERSATION_NOT_FOUND: "Conversation not found",
+    TRANSLATION_NOT_FOUND: "Translation missing", ALREADY_IN_LANGUAGE: "Already in that language",
+    PIPELINE_ERROR: "Server error (voice)", GENERATION_ERROR: "Server error (chat)",
+    TRANSLATION_ERROR: "Server error (translate)", SPEECH_ERROR: "Server error (speech)",
+  };
   const SOURCES = { dashboard: "This dashboard", env: "Server config", none: "Nothing set" };
   const PAGE = 50;
   let token = "";
@@ -302,7 +313,7 @@
     const max = Math.max(1, ...entries.map(([, n]) => n));
     if (!entries.length) return fill(node, el("div", { class: "muted" }, "None"));
     fill(node, ...entries.map(([k, n]) => el("div", { class: "row" },
-      el("span", {}, labeler ? labeler(k) : k),
+      el("span", { title: k }, labeler ? labeler(k) : k),
       el("div", { class: "track" }, el("div", { class: "fill", style: `width:${(n / max) * 100}%` })),
       el("span", { class: "num" }, n))));
   }
@@ -345,7 +356,7 @@
   function llmState(llm) {
     if (llm.provider === "mock") return ["Mock answers", "warn"];
     if (llm.provider === "local") return ["Local model", "ok"];
-    if (!llm.endpoint) return ["No endpoint", "bad"];
+    if (!llm.endpoint) return ["Offline", "warn"];  // stopped, or not started yet
     const ok = llm.last_success_at ? Date.parse(llm.last_success_at) : 0;
     const bad = llm.last_failure_at ? Date.parse(llm.last_failure_at) : 0;
     if (bad > ok) return ["Failing", "bad"];
@@ -374,10 +385,10 @@
     const total = parts.reduce((t, [, v]) => t + (v || 0), 0);
     fill($("avg-timing"), ...parts.map(([, v, c]) => el("span", { style: `width:${total ? (v || 0) / total * 100 : 0}%;background:${c}` })));
     fill($("avg-legend"), ...parts.map(([l, v, c]) => el("span", {}, el("i", { style: `background:${c}` }), `${l} ${secs(v)}`)));
-    bars($("by-error"), Object.entries(s7.by_error).sort((a, b) => b[1] - a[1]));
+    bars($("by-error"), Object.entries(s7.by_error).sort((a, b) => b[1] - a[1]), (k) => ERRORS[k] || k);
 
     kv($("llm-info"), [
-      ["Status", pill(llmText, llmKind)],
+      ["Status", llmText === "Offline" ? el("span", {}, pill(llmText, llmKind), " ", el("span", { class: "muted" }, "Start it in the N-ATLaS tab")) : pill(llmText, llmKind)],
       ["Mode", llm.provider],
       ["Endpoint", llm.endpoint || "None"],
       ["Set by", SOURCES[llm.source] || llm.source],

@@ -197,6 +197,8 @@ async def test_activity_records_natlas_offline(client: AsyncClient, admin_enable
     overview = (await client.get(f"{API.rsplit('/', 1)[0]}/overview", headers=AUTH)).json()
     assert overview["llm"]["last_error"].startswith("RuntimeError")
     assert overview["stats_24h"]["llm_offline"] == 1
+    # N-ATLaS being offline isn't a fault (the transcript was returned): not an error
+    assert overview["stats_24h"]["errors"] == 0
 
 
 @pytest.mark.asyncio

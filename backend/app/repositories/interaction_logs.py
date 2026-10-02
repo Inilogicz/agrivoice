@@ -104,7 +104,17 @@ class InteractionLogRepository:
             await self.session.execute(
                 select(
                     func.count(),
-                    func.sum(case((InteractionLog.success.is_(False), 1), else_=0)),
+                    # Real failures only; "N-ATLaS offline" is counted separately below
+                    func.sum(
+                        case(
+                            (
+                                InteractionLog.success.is_(False)
+                                & (InteractionLog.error_type.is_distinct_from("LLM_UNAVAILABLE")),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
                     func.sum(case((InteractionLog.llm_available.is_(False), 1), else_=0)),
                     func.avg(
                         case((InteractionLog.success.is_(True), InteractionLog.processing_time_ms))

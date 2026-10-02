@@ -1,0 +1,2 @@
+# Lets the editor type-check app.py against .venv (gradio, spaces, torch, transformers).
+python-interpreter-path = ".venv/bin/python"

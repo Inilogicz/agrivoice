@@ -1,0 +1,12 @@
+{$SITE_ADDRESS} {
+	encode gzip
+	request_body {
+		max_size 30MB
+	}
+	reverse_proxy api:7860 {
+		transport http {
+			# Voice requests wait on N-ATLaS; allow up to the backend's own timeout
+			response_header_timeout 180s
+		}
+	}
+}

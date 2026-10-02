@@ -358,7 +358,8 @@ class NatlasRunner:
             "enable_gpu": True,
             "enable_internet": True,
             "machine_shape": "NvidiaTeslaT4",
-            "dataset_sources": [s.KAGGLE_SECRETS_DATASET],
+            # Secrets (HF token) and, if configured, YarnGPT's files for speech
+            "dataset_sources": [d for d in (s.KAGGLE_SECRETS_DATASET, s.KAGGLE_TTS_DATASET) if d],
             "competition_sources": [],
             "kernel_sources": [],
             "model_sources": [],

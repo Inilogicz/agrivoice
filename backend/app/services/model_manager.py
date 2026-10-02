@@ -30,7 +30,13 @@ import torch
 from app.core.config import get_settings
 from app.core.exceptions import ModelLoadError, ModelNotLoadedError
 from app.core.logging import get_logger
-from app.models.base import BaseASRAdapter, BaseLLMAdapter, BaseLanguageDetector, SupportedLanguage
+from app.models.base import (
+    BaseASRAdapter,
+    BaseLanguageDetector,
+    BaseLLMAdapter,
+    BaseSpeechSynthesizer,
+    SupportedLanguage,
+)
 from app.services.llm_endpoint import LLMEndpointRegistry
 
 if TYPE_CHECKING:
@@ -63,6 +69,7 @@ class ModelManager:
         self._asr_adapters: dict[SupportedLanguage, BaseASRAdapter] = {}
         self._llm_adapter: BaseLLMAdapter | None = None
         self._language_detector: BaseLanguageDetector | None = None
+        self._speech: BaseSpeechSynthesizer | None = None
         self._status: dict[str, ModelStatus] = {}
         self.llm_endpoint_registry = LLMEndpointRegistry()
 
@@ -115,7 +122,10 @@ class ModelManager:
             MockASRAdapter,
             MockLanguageDetector,
             MockLLMAdapter,
+            MockSpeechSynthesizer,
         )
+
+        self._speech = MockSpeechSynthesizer()
 
         for lang in ("yo", "ha", "ig", "en-ng"):
             lang_typed: SupportedLanguage = lang  # type: ignore[assignment]
@@ -209,9 +219,10 @@ class ModelManager:
 
         if self._settings.LLM_PROVIDER == "mock":
             logger.warning("LLM_PROVIDER=mock — using MOCK LLM with real ASR models.")
-            from app.services.mock_adapters import MockLLMAdapter  # noqa: PLC0415
+            from app.services.mock_adapters import MockLLMAdapter, MockSpeechSynthesizer  # noqa: PLC0415
 
             self._llm_adapter = MockLLMAdapter()
+            self._speech = MockSpeechSynthesizer()
             self._status["llm"] = ModelStatus(
                 model_id=self._llm_adapter.model_id,
                 is_loaded=True,
@@ -222,10 +233,14 @@ class ModelManager:
             return
 
         if self._settings.LLM_PROVIDER == "remote":
-            from app.models.natlas_remote import RemoteNATLaSAdapter  # noqa: PLC0415
+            from app.models.natlas_remote import (  # noqa: PLC0415
+                RemoteNATLaSAdapter,
+                RemoteSpeechSynthesizer,
+            )
 
             registry = self.llm_endpoint_registry
             remote = RemoteNATLaSAdapter(endpoint_provider=lambda: registry.current.endpoint)
+            self._speech = RemoteSpeechSynthesizer(remote)
             logger.info("Using remote N-ATLaS", endpoint=registry.current.endpoint)
             self._llm_adapter = remote
             self._status["llm"] = ModelStatus(
@@ -283,6 +298,10 @@ class ModelManager:
     def get_all_status(self) -> dict[str, ModelStatus]:
         """Return model load status without exposing secrets or paths."""
         return dict(self._status)
+
+    def get_speech_synthesizer(self) -> BaseSpeechSynthesizer | None:
+        """Text-to-speech, when available (remote N-ATLaS app or mocks)."""
+        return getattr(self, "_speech", None)
 
     def get_remote_llm(self) -> RemoteNATLaSAdapter | None:
         from app.models.natlas_remote import RemoteNATLaSAdapter  # noqa: PLC0415

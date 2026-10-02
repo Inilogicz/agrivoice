@@ -161,6 +161,32 @@ Translate an answer (or any saved message) into one of the other supported langu
 - When N-ATLaS is offline it returns **503 `LLM_UNAVAILABLE`**; nothing is saved, so the user can retry later.
 - Saved translations come back in `GET /conversations/{id}` under each message's `translations`.
 
+### `GET /messages/{message_id}/audio`
+
+The message read aloud, as **MP3**, by Nigerian voices (YarnGPT2). Put the URL straight into an audio player:
+
+```html
+<audio controls src="https://132-145-21-82.sslip.io/api/v1/messages/52bb02db-…/audio"></audio>
+```
+
+| Query | Meaning |
+|---|---|
+| *(none)* | Read the message in its own language |
+| `language=en-ng` (or `yo`, `ha`, `ig`) | Read its saved **translation**. Call `POST /translate` first, or you get `404 TRANSLATION_NOT_FOUND` |
+
+- The **first** request makes the recording: allow **up to ~60 s** and show a loading state on the Listen button. After that it's saved and returns instantly, even while N-ATLaS is offline.
+- Making a new recording needs N-ATLaS online (speech runs on the same GPU). Otherwise: **503 `SPEECH_UNAVAILABLE`**; retry later.
+- Speech is generated slightly slower than natural pace (the admin can change it). Players can also offer their own speed control (`audio.playbackRate = 0.9`).
+- Keep the text on screen next to the audio: the voices sometimes mispronounce words, especially English terms inside Yoruba, Hausa or Igbo.
+
+### `GET /features`
+
+```json
+{ "speech": true, "translation": true }
+```
+
+Show the Listen button only when `speech` is `true`. The admin can switch speech off; requesting audio then returns **503 `SPEECH_DISABLED`**.
+
 ### `GET /conversations/{conversation_id}`
 
 The full history, oldest first. Use it to restore a chat screen.
@@ -235,6 +261,9 @@ Show `message` to the user, and branch on `error`:
 | 404 | `MESSAGE_NOT_FOUND` | Unknown `message_id` (translate) | Refresh the conversation |
 | 422 | `ALREADY_IN_LANGUAGE` | Translating into the message's own language | Hide that language in the menu |
 | 503 | `LLM_UNAVAILABLE` | N-ATLaS offline (`/chat`, `/translate`) | Show the message, offer retry |
+| 404 | `TRANSLATION_NOT_FOUND` | Audio requested for a translation that doesn't exist yet | Call `/translate` first |
+| 503 | `SPEECH_UNAVAILABLE` | Speech model offline (new recordings only) | Show the message, offer retry |
+| 503 | `SPEECH_DISABLED` | Admin switched speech off | Hide the Listen button (`/features`) |
 | 503 | `MODEL_NOT_LOADED` | Server still starting up | Retry in ~30 s |
 | 500 | `PIPELINE_ERROR` / `GENERATION_ERROR` / `TRANSLATION_ERROR` | Unexpected server error | Show a generic error, offer retry |
 

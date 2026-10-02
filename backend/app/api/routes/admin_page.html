@@ -159,7 +159,7 @@
         <div class="filters">
           <select id="f-status"><option value="">All results</option><option value="ok">Successful</option><option value="error">Errors</option></select>
           <select id="f-language"><option value="">All languages</option><option value="yo">Yoruba</option><option value="ha">Hausa</option><option value="ig">Igbo</option><option value="en-ng">Nigerian English</option></select>
-          <select id="f-type"><option value="">All types</option><option value="voice">Voice</option><option value="text">Text</option><option value="translation">Translation</option></select>
+          <select id="f-type"><option value="">All types</option><option value="voice">Voice</option><option value="text">Text</option><option value="translation">Translation</option><option value="speech">Speech</option></select>
           <input id="f-search" placeholder="Search questions and answers">
           <button class="btn" id="f-apply">Apply</button>
         </div>
@@ -419,10 +419,10 @@
       ["Conversation", it.conversation_id], ["Request ID", it.request_id],
     ].filter(([, v]) => v);
     const td = el("td", { colspan: "6" },
-      el("h4", {}, it.input_type === "translation" ? "Original" : "Question" + (it.input_type === "voice" ? " (transcript)" : "")),
+      el("h4", {}, it.input_type === "translation" ? "Original" : it.input_type === "speech" ? "Text read aloud" : "Question" + (it.input_type === "voice" ? " (transcript)" : "")),
       el("div", { class: "text" }, it.prompt || "–"),
-      el("h4", {}, it.input_type === "translation" ? `Translation into ${LANG[it.language] || it.language}` : "Answer"),
-      el("div", { class: "text" }, it.response || (it.llm_available === false ? "N-ATLaS was offline; the user saw the 'temporarily unavailable' notice." : "–")),
+      it.input_type === "speech" ? null : el("h4", {}, it.input_type === "translation" ? `Translation into ${LANG[it.language] || it.language}` : "Answer"),
+      it.input_type === "speech" ? null : el("div", { class: "text" }, it.response || (it.llm_available === false ? "N-ATLaS was offline; the user saw the 'temporarily unavailable' notice." : "–")),
       it.error_type ? el("h4", {}, "Error") : null,
       it.error_type ? el("div", { class: "text" }, `${it.error_type}: ${it.error_message || ""}`) : null,
       total ? el("h4", {}, "Timing") : null,

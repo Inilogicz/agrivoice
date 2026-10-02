@@ -271,7 +271,7 @@ async def list_interactions(
     offset: int = Query(0, ge=0),
     status_filter: Literal["ok", "error"] | None = Query(None, alias="status"),
     language: str | None = None,
-    input_type: Literal["voice", "text", "translation"] | None = None,
+    input_type: Literal["voice", "text", "translation", "speech"] | None = None,
     search: str | None = Query(None, max_length=200),
 ) -> InteractionPage:
     rows, total = await InteractionLogRepository(session).list(

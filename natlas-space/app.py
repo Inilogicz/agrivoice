@@ -13,10 +13,14 @@ Two differences from the model card's snippet, both needed to run it:
 
 The AgriVoice backend calls the `/generate` endpoint with a list of chat
 messages. The "Chat" tab is for trying the model by hand.
+
+With TTS_ENABLED=1, `/speak` also reads text aloud with YarnGPT2 (tts.py),
+on the same GPU. It needs YARNGPT_DIR, WAVTOKENIZER_CKPT, WAVTOKENIZER_CONFIG.
 """
 from __future__ import annotations
 
 import os
+import tempfile
 from datetime import datetime
 
 import gradio as gr
@@ -56,6 +60,15 @@ else:
         token=HF_TOKEN,
     ).to(DEVICE)
 model.eval()
+
+# Optional text-to-speech, loaded once like the model (off unless TTS_ENABLED=1)
+tts_engine = None
+if os.getenv("TTS_ENABLED") == "1":
+    from tts import YarnTTS  # noqa: PLC0415
+
+    tts_engine = YarnTTS(
+        os.environ["YARNGPT_DIR"], os.environ["WAVTOKENIZER_CKPT"], os.environ["WAVTOKENIZER_CONFIG"]
+    )
 
 
 def format_text_for_inference(messages: list[dict[str, str]]) -> str:
@@ -121,6 +134,30 @@ def _text(content: object) -> str:
     return str(content)
 
 
+@spaces.GPU(duration=120)
+def speak(text: str, language: str, voice: str = "") -> str:
+    """
+    Read *text* aloud. Returns the path of a 24 kHz WAV file.
+
+    Args:
+        text: What to say (Markdown is stripped; long text is split into sentences).
+        language: "yo", "ha", "ig" or "en-ng".
+        voice: Optional YarnGPT voice name; empty uses the language's default.
+    """
+    if tts_engine is None:
+        raise gr.Error("Text-to-speech is not enabled on this server.")
+    import soundfile as sf  # noqa: PLC0415
+    from tts import SAMPLE_RATE  # noqa: PLC0415
+
+    try:
+        audio = tts_engine.speak(text, language, voice or None)
+    except ValueError as exc:
+        raise gr.Error(str(exc)) from exc
+    path = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
+    sf.write(path, audio, SAMPLE_RATE)
+    return path
+
+
 def chat(message: str, history: list[dict]) -> str:
     messages = [{"role": "system", "content": DEFAULT_SYSTEM_PROMPT}]
     messages += [{"role": m["role"], "content": _text(m["content"])} for m in history]
@@ -145,6 +182,14 @@ with gr.Blocks(title="N-ATLaS") as demo:
         reply_out = gr.Textbox(label="reply")
         gr.Button("Generate").click(
             generate, inputs=[messages_in, max_tokens_in], outputs=reply_out, api_name="generate"
+        )
+    with gr.Tab("Speech"):
+        speech_text = gr.Textbox(label="text", value="Ẹ káàbọ̀ sí AgriVoice.")
+        speech_lang = gr.Dropdown(["yo", "ha", "ig", "en-ng"], value="yo", label="language")
+        speech_voice = gr.Textbox(label="voice (optional)")
+        speech_out = gr.Audio(label="speech", type="filepath")
+        gr.Button("Speak").click(
+            speak, inputs=[speech_text, speech_lang, speech_voice], outputs=speech_out, api_name="speak"
         )
 
 if __name__ == "__main__":

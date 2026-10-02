@@ -99,10 +99,17 @@ class Settings(BaseSettings):
     KAGGLE_API_TOKEN: str | None = None
     KAGGLE_NOTEBOOK_ID: str | None = None        # e.g. "username/agrivoice-natlas"
     KAGGLE_SECRETS_DATASET: str | None = None    # private dataset with an hf_token file
+    # Private dataset with YarnGPT's decoder files; enables text-to-speech on Kaggle
+    KAGGLE_TTS_DATASET: str | None = None
     # This backend's public address, which the notebook calls back
     PUBLIC_BASE_URL: str | None = None
     NATLAS_DEFAULT_RUN_HOURS: float = 4.0
     NATLAS_WEEKLY_HOURS_LIMIT: float = 28.0      # Kaggle allows 30 GPU h/week
+
+    # ── Text-to-speech (YarnGPT2, generated next to N-ATLaS on the GPU) ──────
+    TTS_ENABLED: bool = False
+    TTS_SPEED: float = 0.85                      # 1.0 = YarnGPT's own pace (fast)
+    SPEECH_CACHE_DIR: str = "./speech_cache"     # generated MP3s, reused on replay
 
     # ── Request timeouts ──────────────────────────────────────────────────────
     REQUEST_TIMEOUT_SECONDS: int = 120

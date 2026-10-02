@@ -18,7 +18,12 @@ from app.core.config import Settings, get_settings
 from app.db.base import Base
 from app.db.database import get_db
 from app.main import create_app
-from app.services.mock_adapters import MockASRAdapter, MockLanguageDetector, MockLLMAdapter
+from app.services.mock_adapters import (
+    MockASRAdapter,
+    MockLanguageDetector,
+    MockLLMAdapter,
+    MockSpeechSynthesizer,
+)
 from app.services.llm_endpoint import LLMEndpointRegistry
 from app.services.model_manager import ModelManager
 
@@ -66,6 +71,7 @@ def mock_model_manager() -> ModelManager:
     }
     manager._llm_adapter = MockLLMAdapter()
     manager._language_detector = MockLanguageDetector()
+    manager._speech = MockSpeechSynthesizer()
     manager._status = {}
     manager.llm_endpoint_registry = LLMEndpointRegistry()
     return manager

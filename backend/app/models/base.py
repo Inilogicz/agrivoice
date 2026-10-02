@@ -68,6 +68,19 @@ class BaseLLMAdapter(ABC):
         """
 
 
+class BaseSpeechSynthesizer(ABC):
+    """Contract for text-to-speech adapters."""
+
+    @property
+    @abstractmethod
+    def model_id(self) -> str:
+        """Identifier of the speech model."""
+
+    @abstractmethod
+    async def synthesize(self, text: str, language: SupportedLanguage) -> bytes:
+        """Speak *text* in *language*; returns WAV bytes."""
+
+
 class BaseLanguageDetector(ABC):
     """Contract for automatic language detection adapters."""
 

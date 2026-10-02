@@ -77,6 +77,32 @@ INSTALL = """
 !nvidia-smi --query-gpu=name,memory.total --format=csv
 """
 
+# Text-to-speech (YarnGPT2) is switched on when the private "agrivoice-tts-assets"
+# dataset (WavTokenizer checkpoint + config) is attached; N-ATLaS works without it.
+TTS_SETUP = """
+import glob, os, subprocess
+
+def _find(name):
+    hits = glob.glob(f"/kaggle/input/**/agrivoice-tts-assets/**/{name}", recursive=True) or \\
+           glob.glob(f"/kaggle/input/**/{name}", recursive=True)
+    return hits[0] if hits else None
+
+ckpt = _find("wavtokenizer_large_speech_320_24k.ckpt")
+config = _find("wavtokenizer_mediumdata_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml")
+if ckpt and config:
+    # outetts without its llama-cpp dependency (only its audio decoder is used)
+    subprocess.run("pip install -q --no-deps outetts==0.3.3 && pip install -q uroman inflect einops loguru soundfile",
+                   shell=True, check=True)
+    if not os.path.isdir("/kaggle/working/yarngpt"):
+        subprocess.run("git clone -q --depth 1 https://github.com/saheedniyi02/yarngpt.git /kaggle/working/yarngpt",
+                       shell=True, check=True)
+    os.environ.update(TTS_ENABLED="1", YARNGPT_DIR="/kaggle/working",
+                      WAVTOKENIZER_CKPT=ckpt, WAVTOKENIZER_CONFIG=config)
+    print("Text-to-speech: on")
+else:
+    print("Text-to-speech: off (attach the agrivoice-tts-assets dataset to enable it)")
+"""
+
 SECRETS = """
 import os
 from kaggle_secrets import UserSecretsClient
@@ -189,12 +215,15 @@ finally:
 
 def main() -> None:
     app_source = (HERE / "app.py").read_text(encoding="utf-8")
+    tts_source = (HERE / "tts.py").read_text(encoding="utf-8")
     notebook = {
         "cells": [
             md(SETUP),
             code(CONFIG),
             code(INSTALL),
             code(SECRETS),
+            code(TTS_SETUP),
+            code("%%writefile tts.py\n" + tts_source),
             code("%%writefile app.py\n" + app_source),
             code(LAUNCH),
         ],

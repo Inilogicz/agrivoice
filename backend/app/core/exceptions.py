@@ -137,6 +137,33 @@ class AlreadyInLanguageError(AgriVoiceError):
         )
 
 
+class TranslationNotFoundError(AgriVoiceError):
+    """Audio requested in a language the message hasn't been translated into."""
+
+    def __init__(self, language_name: str) -> None:
+        super().__init__(
+            f"Translate this message into {language_name} before requesting its audio.",
+            error_code="TRANSLATION_NOT_FOUND",
+        )
+
+
+class SpeechDisabledError(AgriVoiceError):
+    """Text-to-speech is switched off (admin setting TTS_ENABLED)."""
+
+    def __init__(self) -> None:
+        super().__init__("Spoken answers are turned off.", error_code="SPEECH_DISABLED")
+
+
+class SpeechUnavailableError(AgriVoiceError):
+    """The speech model (on the N-ATLaS GPU) is offline; details are logged."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Spoken answers are temporarily unavailable. Please try again shortly.",
+            error_code="SPEECH_UNAVAILABLE",
+        )
+
+
 # ── HTTP helpers ──────────────────────────────────────────────────────────────
 
 def to_http_exception(exc: AgriVoiceError) -> HTTPException:
@@ -148,6 +175,9 @@ def to_http_exception(exc: AgriVoiceError) -> HTTPException:
         ConversationNotFoundError: status.HTTP_404_NOT_FOUND,
         MessageNotFoundError: status.HTTP_404_NOT_FOUND,
         AlreadyInLanguageError: status.HTTP_422_UNPROCESSABLE_ENTITY,
+        TranslationNotFoundError: status.HTTP_404_NOT_FOUND,
+        SpeechDisabledError: status.HTTP_503_SERVICE_UNAVAILABLE,
+        SpeechUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
         ModelNotLoadedError: status.HTTP_503_SERVICE_UNAVAILABLE,
         LLMUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
     }

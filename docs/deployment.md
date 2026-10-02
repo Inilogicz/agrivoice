@@ -33,6 +33,7 @@ PUBLIC_BASE_URL=https://api.example.com
 KAGGLE_API_TOKEN=...
 KAGGLE_NOTEBOOK_ID=your-kaggle-username/agrivoice-natlas
 KAGGLE_SECRETS_DATASET=your-kaggle-username/agrivoice-secrets
+KAGGLE_TTS_DATASET=your-kaggle-username/agrivoice-tts-assets   # spoken answers
 ```
 
 Then start it:
@@ -56,6 +57,7 @@ The notebook is [`natlas-space/kaggle/agrivoice_natlas.ipynb`](../natlas-space/k
 2. Settings: **Accelerator: GPU T4 ×2**, **Internet: on**.
 3. Create a **private** dataset named `agrivoice-secrets` containing one file, `hf_token`, holding your Hugging Face token. Runs started through the Kaggle API can't read Kaggle Secrets, so they read the token from here.
 4. Create a Kaggle API token (Settings → API) and put it in the server's `KAGGLE_API_TOKEN`.
+5. *(Spoken answers)* Create a **private** dataset named `agrivoice-tts-assets` with YarnGPT's decoder files: `wavtokenizer_large_speech_320_24k.ckpt` (YarnGPT's [Google Drive link](https://drive.google.com/file/d/1-ASeEkrn4HY49yZWHTASgfGFNXdVnLTt)) and `wavtokenizer_mediumdata_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml` ([Hugging Face](https://huggingface.co/novateur/WavTokenizer-medium-speech-75token)). Set `KAGGLE_TTS_DATASET` on the server. When the dataset is attached, the notebook switches speech on; without it, N-ATLaS runs as before.
 
 ## 3. Operating N-ATLaS from the dashboard
 

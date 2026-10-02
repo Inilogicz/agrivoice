@@ -17,6 +17,7 @@ A farmer asks a question by voice or text in **Yoruba, Hausa, Igbo or Nigerian E
 | Transcribe speech | [NCAIR1/Yoruba-ASR](https://huggingface.co/NCAIR1/Yoruba-ASR), [Hausa-ASR](https://huggingface.co/NCAIR1/Hausa-ASR), [Igbo-ASR](https://huggingface.co/NCAIR1/Igbo-ASR), [NigerianAccentedEnglish](https://huggingface.co/NCAIR1/NigerianAccentedEnglish) | The model for the detected (or chosen) language turns the recording into text |
 | Answer | [**NCAIR1/N-ATLaS**](https://huggingface.co/NCAIR1/N-ATLaS) | Writes the agricultural advice, in the farmer's language, with conversation history |
 | Translate | **NCAIR1/N-ATLaS** | Translates any answer between the four languages |
+| Read answers aloud | [saheedniyi/YarnGPT2](https://huggingface.co/saheedniyi/YarnGPT2) *(supporting)* | Nigerian voices for all four languages; runs next to N-ATLaS on the GPU |
 | Detect the spoken language | [facebook/mms-lid-126](https://huggingface.co/facebook/mms-lid-126) *(supporting)* | Picks which NCAIR speech model to use. NCAIR's speech models are each fine-tuned for one language and can't identify languages, so a dedicated detector is used. If it isn't confident, the farmer chooses the language |
 
 N-ATLaS is used exactly as its model card specifies: official weights, the chat template with `date_string`, `repetition_penalty=1.12`, greedy decoding.
@@ -37,6 +38,7 @@ flowchart LR
 - **Voice or text** questions; browser recordings (WebM, MP4/AAC, WAV, MP3, OGG) accepted as-is
 - **Automatic language detection**, with a language picker when detection isn't confident
 - **Answers in the farmer's language**, kept short for listening on a phone
+- **Spoken answers** in Nigerian voices (Yoruba, Hausa, Igbo, English), saved for instant replay
 - **Translation** of answers between Yoruba, Hausa, Igbo and English (via English between two Nigerian languages, which measurably improved quality)
 - **Conversations and feedback** (👍/👎) stored for evaluation
 - **Admin dashboard** (`/admin`): every question and answer with timings and errors, server and model status, live settings, and **start / stop / scheduling of N-ATLaS** on its GPU
@@ -78,4 +80,5 @@ Details, including running with the real models, are in [backend/README.md](back
 
 - **N-ATLaS** and the **NCAIR ASR models** are by the [National Centre for Artificial Intelligence and Robotics (NCAIR)](https://huggingface.co/NCAIR1) and [Awarri](https://awarri.com), released under NCAIR's terms. They are gated: users accept the licence on Hugging Face.
 - **MMS-LID** is by Meta AI under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (non-commercial).
+- **YarnGPT2** is by Saheed Azeez under Apache-2.0; its audio decoder is [WavTokenizer](https://github.com/jishengpeng/WavTokenizer) (MIT).
 - **FLEURS** (Google) was used for evaluation only.

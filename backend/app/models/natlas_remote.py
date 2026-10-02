@@ -17,9 +17,9 @@ from collections.abc import Callable
 from typing import Any
 
 from app.core.config import get_settings
-from app.core.exceptions import LLMUnavailableError
+from app.core.exceptions import LLMUnavailableError, SpeechUnavailableError
 from app.core.logging import get_logger
-from app.models.base import BaseLLMAdapter, SupportedLanguage
+from app.models.base import BaseLLMAdapter, BaseSpeechSynthesizer, SupportedLanguage
 from app.schemas.voice import GenerationResult
 
 logger = get_logger(__name__)
@@ -97,3 +97,35 @@ class RemoteNATLaSAdapter(BaseLLMAdapter):
 
         self.last_success_at = time.time()
         return str(reply).strip(), round((time.time() - t0) * 1000)
+
+
+class RemoteSpeechSynthesizer(BaseSpeechSynthesizer):
+    """YarnGPT2 text-to-speech served by the same N-ATLaS app (`/speak`)."""
+
+    def __init__(self, natlas: RemoteNATLaSAdapter) -> None:
+        self._natlas = natlas  # shares its endpoint and client
+
+    @property
+    def model_id(self) -> str:
+        return "saheedniyi/YarnGPT2"
+
+    async def synthesize(self, text: str, language: SupportedLanguage) -> bytes:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self._call, text, language)
+
+    def _call(self, text: str, language: SupportedLanguage) -> bytes:
+        endpoint = self._natlas._endpoint_provider()  # noqa: SLF001
+        if not endpoint:
+            logger.error("No N-ATLaS endpoint is configured (speech)")
+            raise SpeechUnavailableError()
+        try:
+            job = self._natlas._get_client(endpoint).submit(  # noqa: SLF001
+                text, language, "", api_name="/speak"
+            )
+            # Speech takes longer than an answer: allow at least three minutes
+            path = job.result(timeout=max(180, get_settings().REQUEST_TIMEOUT_SECONDS))
+            with open(path, "rb") as f:
+                return f.read()
+        except Exception as exc:
+            logger.error("Speech request failed", endpoint=endpoint, error=str(exc))
+            raise SpeechUnavailableError() from exc

@@ -13,7 +13,13 @@ from __future__ import annotations
 import asyncio
 import time
 
-from app.models.base import BaseASRAdapter, BaseLLMAdapter, BaseLanguageDetector, SupportedLanguage
+from app.models.base import (
+    BaseASRAdapter,
+    BaseLanguageDetector,
+    BaseLLMAdapter,
+    BaseSpeechSynthesizer,
+    SupportedLanguage,
+)
 from app.schemas.voice import GenerationResult, LanguageDetectionResult, TranscriptionResult
 
 _MOCK_TRANSCRIPTS: dict[SupportedLanguage, str] = {
@@ -99,3 +105,24 @@ class MockLanguageDetector(BaseLanguageDetector):
             confidence=0.99,
             is_fallback=False,
         )
+
+
+class MockSpeechSynthesizer(BaseSpeechSynthesizer):
+    """Development-only speech: a short tone instead of a voice."""
+
+    @property
+    def model_id(self) -> str:
+        return "MOCK/TTS"
+
+    async def synthesize(self, text: str, language: SupportedLanguage) -> bytes:
+        import io  # noqa: PLC0415
+
+        import numpy as np  # noqa: PLC0415
+        import soundfile as sf  # noqa: PLC0415
+
+        await asyncio.sleep(0.02)
+        sr = 24000
+        t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
+        buf = io.BytesIO()
+        sf.write(buf, (0.2 * np.sin(2 * np.pi * 440 * t)).astype("float32"), sr, format="WAV")
+        return buf.getvalue()

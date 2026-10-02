@@ -27,6 +27,7 @@ from app.api.routes import (
     health,
     languages,
     natlas,
+    speech,
     translate,
     voice,
 )
@@ -149,6 +150,7 @@ def create_app() -> FastAPI:
     app.include_router(languages.router, prefix=api_prefix)
     app.include_router(chat.router, prefix=api_prefix)
     app.include_router(translate.router, prefix=api_prefix)
+    app.include_router(speech.router, prefix=api_prefix)
     app.include_router(conversations.router, prefix=api_prefix)
     app.include_router(feedback.router, prefix=api_prefix)
     app.include_router(admin.router, prefix=api_prefix)

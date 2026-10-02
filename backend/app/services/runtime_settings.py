@@ -32,7 +32,7 @@ class SettingSpec:
     key: str
     label: str
     help: str
-    kind: Literal["int", "float", "origins"]
+    kind: Literal["int", "float", "bool", "origins"]
     min: float | None = None
     max: float | None = None
 
@@ -84,6 +84,19 @@ EDITABLE_SETTINGS: dict[str, SettingSpec] = {
             "float", 1, 30,
         ),
         SettingSpec(
+            "TTS_ENABLED",
+            "Read answers aloud",
+            "Offer spoken answers (YarnGPT voices). Generated on the N-ATLaS GPU, so only "
+            "new recordings need N-ATLaS online; saved ones always play.",
+            "bool",
+        ),
+        SettingSpec(
+            "TTS_SPEED",
+            "Speech speed",
+            "1.0 is YarnGPT's natural pace, which listeners found fast. Applies to new recordings.",
+            "float", 0.6, 1.2,
+        ),
+        SettingSpec(
             "MAX_AUDIO_SIZE_MB",
             "Maximum upload size (MB)",
             "Recordings larger than this are rejected.",
@@ -99,6 +112,16 @@ class InvalidSettingError(ValueError):
 
 def _parse(spec: SettingSpec, raw: Any) -> Any:
     """Validate and convert a value for *spec*; raises InvalidSettingError."""
+    if spec.kind == "bool":
+        if isinstance(raw, bool):
+            return raw
+        text = str(raw).strip().lower()
+        if text in ("true", "1", "yes", "on"):
+            return True
+        if text in ("false", "0", "no", "off"):
+            return False
+        raise InvalidSettingError(f"{spec.label} must be on or off.")
+
     if spec.kind == "origins":
         origins = [o.strip().rstrip("/") for o in str(raw).split(",") if o.strip()]
         if not origins:
